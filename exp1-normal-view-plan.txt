@@ -1,0 +1,23 @@
+tpch-200mb=# EXPLAIN (ANALYZE, VERBOSE)
+SELECT * FROM plain_v WHERE c_nationkey = 5;
+                                                              QUERY PLAN                                                               
+-----------------------------------------------------------------------------------------------------------------------------------------
+Seq Scan on public.customer c1  (cost=0.00..32941545.00 rows=398 width=33) (actual time=15.152..3111.983 rows=599.00 loops=1)
+  Output: c1.c_custkey, c1.c_name, c1.c_nationkey, c1.c_acctbal
+  Filter: ((c1.c_nationkey = 5) AND (c1.c_acctbal > (SubPlan 1)))
+  Rows Removed by Filter: 29401
+  Buffers: shared hit=861120
+  SubPlan 1
+    ->  Aggregate  (cost=1098.00..1098.01 rows=1 width=32) (actual time=2.601..2.601 rows=1.00 loops=1195)
+          Output: avg(c2.c_acctbal)
+          Buffers: shared hit=860400
+          ->  Seq Scan on public.customer c2  (cost=0.00..1095.00 rows=1200 width=6) (actual time=0.001..2.472 rows=1195.00 loops=1195)
+                Output: c2.c_custkey, c2.c_name, c2.c_address, c2.c_nationkey, c2.c_phone, c2.c_acctbal, c2.c_mktsegment, c2.c_comment
+                Filter: (c2.c_nationkey = c1.c_nationkey)
+                Rows Removed by Filter: 28805
+                Buffers: shared hit=860400
+Planning:
+  Buffers: shared hit=8
+Planning Time: 0.275 ms
+Execution Time: 3112.081 ms
+(18 rows)
