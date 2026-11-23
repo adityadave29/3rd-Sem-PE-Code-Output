@@ -1,0 +1,21 @@
+QUERY PLAN                                                           
+-------------------------------------------------------------------------------------------------------------------------------
+ Seq Scan on customer c  (cost=0.00..91315.83 rows=10 width=27) (actual time=34.639..352.766 rows=10.00 loops=1)
+   Filter: (c_custkey <= 10)
+   Rows Removed by Filter: 29990
+   Buffers: shared hit=9223 read=44220
+   SubPlan 1
+     ->  Limit  (cost=9022.08..9022.08 rows=1 width=4) (actual time=24.542..24.542 rows=0.70 loops=10)
+           Buffers: shared hit=8503 read=44220
+           ->  Sort  (cost=9022.08..9022.12 rows=16 width=4) (actual time=24.538..24.538 rows=0.70 loops=10)
+                 Sort Key: o.o_orderdate DESC
+                 Sort Method: top-N heapsort  Memory: 25kB
+                 Buffers: shared hit=8503 read=44220
+                 ->  Seq Scan on orders o  (cost=0.00..9022.00 rows=16 width=4) (actual time=8.406..24.391 rows=9.70 loops=10)
+                       Filter: (o_custkey = c.c_custkey)
+                       Rows Removed by Filter: 299990
+                       Buffers: shared hit=8500 read=44220
+ Planning:
+   Buffers: shared hit=11 read=2
+ Planning Time: 5.653 ms
+ Execution Time: 353.010 ms

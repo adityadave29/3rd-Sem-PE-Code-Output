@@ -1,0 +1,21 @@
+QUERY PLAN                                                                  
+----------------------------------------------------------------------------------------------------------------------------------------------
+ Gather  (cost=30402.03..49370.04 rows=115237 width=107) (actual time=138.427..190.890 rows=98918.00 loops=1)
+   Workers Planned: 2
+   Workers Launched: 2
+   Buffers: shared hit=662 read=27162
+   ->  Parallel Hash Semi Join  (cost=29402.03..36846.34 rows=48015 width=107) (actual time=131.828..177.082 rows=32972.67 loops=3)
+         Hash Cond: (orders.o_orderkey = lineitem.l_orderkey)
+         Buffers: shared hit=662 read=27162
+         ->  Parallel Seq Scan on orders  (cost=0.00..6522.00 rows=125000 width=107) (actual time=0.307..23.154 rows=100000.00 loops=3)
+               Buffers: shared hit=380 read=4892
+         ->  Parallel Hash  (cost=28801.84..28801.84 rows=48015 width=4) (actual time=131.333..131.333 rows=40033.67 loops=3)
+               Buckets: 131072  Batches: 1  Memory Usage: 5760kB
+               Buffers: shared hit=282 read=22270
+               ->  Parallel Seq Scan on lineitem  (cost=0.00..28801.84 rows=48015 width=4) (actual time=0.341..121.804 rows=40033.67 loops=3)
+                     Filter: (l_quantity > '45'::numeric)
+                     Rows Removed by Filter: 359956
+                     Buffers: shared hit=282 read=22270
+ Planning Time: 3.701 ms
+ Execution Time: 194.957 ms
+(18 rows)
