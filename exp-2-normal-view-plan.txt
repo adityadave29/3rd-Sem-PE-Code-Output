@@ -1,0 +1,20 @@
+tpch-200mb=# EXPLAIN (ANALYZE, VERBOSE)
+SELECT * FROM plain_v WHERE c_name LIKE 'A%';
+                                                              QUERY PLAN                                                              
+----------------------------------------------------------------------------------------------------------------------------------------
+Seq Scan on public.customer c1  (cost=0.00..32941545.00 rows=1 width=33) (actual time=13.622..13.624 rows=0.00 loops=1)
+  Output: c1.c_custkey, c1.c_name, c1.c_nationkey, c1.c_acctbal
+  Filter: (((c1.c_name)::text ~~ 'A%'::text) AND (c1.c_acctbal > (SubPlan 1)))
+  Rows Removed by Filter: 30000
+  Buffers: shared hit=720
+  SubPlan 1
+    ->  Aggregate  (cost=1098.00..1098.01 rows=1 width=32) (never executed)
+          Output: avg(c2.c_acctbal)
+          ->  Seq Scan on public.customer c2  (cost=0.00..1095.00 rows=1200 width=6) (never executed)
+                Output: c2.c_custkey, c2.c_name, c2.c_address, c2.c_nationkey, c2.c_phone, c2.c_acctbal, c2.c_mktsegment, c2.c_comment
+                Filter: (c2.c_nationkey = c1.c_nationkey)
+Planning Time: 0.627 ms
+Execution Time: 14.001 ms
+(13 rows)
+
+

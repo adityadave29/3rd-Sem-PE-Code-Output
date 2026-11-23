@@ -1,0 +1,29 @@
+
+tpch-200mb=# EXPLAIN (ANALYZE, VERBOSE)
+SELECT * FROM secure_v WHERE c_name LIKE 'A%';
+                                                                  QUERY PLAN                                                                  
+------------------------------------------------------------------------------------------------------------------------------------------------
+Subquery Scan on secure_v  (cost=0.00..32941595.00 rows=50 width=33) (actual time=77232.541..77232.542 rows=0.00 loops=1)
+  Output: secure_v.c_custkey, secure_v.c_name, secure_v.c_nationkey, secure_v.c_acctbal
+  Filter: ((secure_v.c_name)::text ~~ 'A%'::text)
+  Rows Removed by Filter: 14873
+  Buffers: shared hit=21600720
+  ->  Seq Scan on public.customer c1  (cost=0.00..32941470.00 rows=10000 width=33) (actual time=23.280..77230.412 rows=14873.00 loops=1)
+        Output: c1.c_custkey, c1.c_name, c1.c_nationkey, c1.c_acctbal
+        Filter: (c1.c_acctbal > (SubPlan 1))
+        Rows Removed by Filter: 15127
+        Buffers: shared hit=21600720
+        SubPlan 1
+          ->  Aggregate  (cost=1098.00..1098.01 rows=1 width=32) (actual time=2.574..2.574 rows=1.00 loops=30000)
+                Output: avg(c2.c_acctbal)
+                Buffers: shared hit=21600000
+                ->  Seq Scan on public.customer c2  (cost=0.00..1095.00 rows=1200 width=6) (actual time=0.003..2.444 rows=1200.84 loops=30000)
+                      Output: c2.c_custkey, c2.c_name, c2.c_address, c2.c_nationkey, c2.c_phone, c2.c_acctbal, c2.c_mktsegment, c2.c_comment
+                      Filter: (c2.c_nationkey = c1.c_nationkey)
+                      Rows Removed by Filter: 28799
+                      Buffers: shared hit=21600000
+Planning:
+  Buffers: shared hit=3
+Planning Time: 2.013 ms
+Execution Time: 77232.901 ms
+(23 rows)
