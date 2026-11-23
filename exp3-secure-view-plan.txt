@@ -1,0 +1,23 @@
+tpch-200mb=# EXPLAIN ANALYZE SELECT * FROM secure_v WHERE c_name LIKE 'Customer#000012%';
+                                                              QUERY PLAN                                                               
+-----------------------------------------------------------------------------------------------------------------------------------------
+Subquery Scan on secure_v  (cost=0.00..32941595.00 rows=50 width=33) (actual time=31478.944..77336.252 rows=486.00 loops=1)
+  Filter: ((secure_v.c_name)::text ~~ 'Customer#000012%'::text)
+  Rows Removed by Filter: 14387
+  Buffers: shared hit=21600720
+  ->  Seq Scan on customer c1  (cost=0.00..32941470.00 rows=10000 width=33) (actual time=25.254..77333.188 rows=14873.00 loops=1)
+        Filter: (c_acctbal > (SubPlan 1))
+        Rows Removed by Filter: 15127
+        Buffers: shared hit=21600720
+        SubPlan 1
+          ->  Aggregate  (cost=1098.00..1098.01 rows=1 width=32) (actual time=2.577..2.577 rows=1.00 loops=30000)
+                Buffers: shared hit=21600000
+                ->  Seq Scan on customer c2  (cost=0.00..1095.00 rows=1200 width=6) (actual time=0.003..2.447 rows=1200.84 loops=30000)
+                      Filter: (c_nationkey = c1.c_nationkey)
+                      Rows Removed by Filter: 28799
+                      Buffers: shared hit=21600000
+Planning:
+  Buffers: shared hit=6
+Planning Time: 0.581 ms
+Execution Time: 77337.536 ms
+(19 rows)
