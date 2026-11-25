@@ -1,0 +1,67 @@
+tpch-200mb-2=# SELECT has_function_privilege('alice', 'pg_relation_filepath(regclass)', 'EXECUTE') AS filepath,
+      has_function_privilege('alice', 'pg_relation_size(regclass)', 'EXECUTE')     AS relsize,
+      has_table_privilege('alice', 'pg_class', 'SELECT')                           AS pg_class;
+filepath | relsize | pg_class
+----------+---------+----------
+t        | t       | t
+(1 row)
+
+
+tpch-200mb-2=# CREATE EXTENSION IF NOT EXISTS pageinspect;
+CREATE EXTENSION IF NOT EXISTS pgstattuple;
+CREATE EXTENSION IF NOT EXISTS pg_freespacemap;
+CREATE EXTENSION IF NOT EXISTS pg_visibility;
+
+
+SELECT has_function_privilege('alice', 'pgstattuple(regclass)', 'EXECUTE')      AS pgstattuple,
+      has_function_privilege('alice', 'pg_freespace(regclass)', 'EXECUTE')      AS freespace,
+      has_function_privilege('alice', 'pg_visibility_map(regclass)', 'EXECUTE') AS visibility;
+CREATE EXTENSION
+CREATE EXTENSION
+CREATE EXTENSION
+CREATE EXTENSION
+pgstattuple | freespace | visibility
+-------------+-----------+------------
+f           | f         | f
+(1 row)
+
+
+tpch-200mb-2=# SET ROLE alice;
+
+
+SELECT pg_relation_filepath('region');
+SELECT pg_relation_size('region') / current_setting('block_size')::int AS pages;
+SELECT relpages, reltuples FROM pg_class WHERE relname = 'region';
+
+
+SELECT * FROM pgstattuple('region');
+SELECT * FROM pg_freespace('region');
+SELECT * FROM pg_visibility_map('region');
+
+
+SELECT * FROM heap_page_items(get_raw_page('region', 0));
+RESET ROLE;
+SET
+pg_relation_filepath
+----------------------
+base/18129/18136
+(1 row)
+
+
+pages
+-------
+    1
+(1 row)
+
+
+relpages | reltuples
+----------+-----------
+       1 |         5
+(1 row)
+
+
+ERROR:  permission denied for function pgstattuple
+ERROR:  permission denied for function pg_freespace
+ERROR:  permission denied for function pg_visibility_map
+ERROR:  must be superuser to use raw page functions
+RESET
