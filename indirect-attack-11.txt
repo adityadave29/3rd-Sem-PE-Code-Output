@@ -1,0 +1,39 @@
+tpch-200mb=# CREATE SEQUENCE test_seq START 1000;
+SELECT nextval('test_seq');
+SET ROLE alice;
+SELECT sequencename, last_value FROM pg_sequences WHERE sequencename = 'test_seq';  SELECT currval('test_seq');                                                         RESET ROLE;
+
+
+GRANT SELECT ON SEQUENCE test_seq TO alice;
+SET ROLE alice;
+SELECT sequencename, last_value FROM pg_sequences WHERE sequencename = 'test_seq';  
+RESET ROLE;
+REVOKE ALL ON SEQUENCE test_seq FROM alice;
+DROP SEQUENCE test_seq;
+CREATE SEQUENCE
+nextval
+---------
+   1000
+(1 row)
+
+
+SET
+sequencename | last_value
+--------------+------------
+test_seq     |          
+(1 row)
+
+
+ERROR:  permission denied for sequence test_seq
+RESET
+GRANT
+SET
+sequencename | last_value
+--------------+------------
+test_seq     |       1000
+(1 row)
+
+
+RESET
+REVOKE
+DROP SEQUENCE
