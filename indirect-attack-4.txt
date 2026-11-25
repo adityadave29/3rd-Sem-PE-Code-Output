@@ -1,0 +1,54 @@
+tpch-200mb-2=# CREATE EXTENSION pageinspect;
+
+
+ALTER TABLE region ENABLE ROW LEVEL SECURITY;
+CREATE POLICY region_policy ON region FOR SELECT TO alice
+USING (r_regionkey = 0);
+
+
+GRANT SELECT ON region TO alice;
+CREATE EXTENSION
+ALTER TABLE
+CREATE POLICY
+GRANT
+tpch-200mb-2=# SET ROLE alice;
+SELECT * FROM region;
+RESET ROLE;
+SET
+r_regionkey |          r_name           |                                                      r_comment                                                     
+-------------+---------------------------+---------------------------------------------------------------------------------------------------------------------
+          0 | AFRICA                    | lar deposits. blithely final packages cajole. regular waters are final requests. regular accounts are according to
+(1 row)
+
+
+RESET
+tpch-200mb-2=# SET ROLE alice;
+SELECT * FROM heap_page_items(get_raw_page('region', 0));
+RESET ROLE;
+SET
+ERROR:  must be superuser to use raw page functions
+RESET
+tpch-200mb-2=# GRANT EXECUTE ON FUNCTION get_raw_page(text, bigint) TO alice;
+GRANT EXECUTE ON FUNCTION heap_page_items(bytea) TO alice;
+
+
+SET ROLE alice;
+SELECT * FROM heap_page_items(get_raw_page('region', 0));
+RESET ROLE;
+GRANT
+GRANT
+SET
+ERROR:  must be superuser to use raw page functions
+RESET
+tpch-200mb-2=# RESET ROLE;
+SELECT lp, encode(t_data, 'escape') AS raw_row
+FROM heap_page_items(get_raw_page('region', 0));
+RESET
+lp |                                                                              raw_row                                                                             
+----+-------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ 1 | \000\000\000\0005AFRICA                   \351lar deposits. blithely final packages cajole. regular waters are final requests. regular accounts are according to
+ 2 | \x01\000\000\0005AMERICA                  Ahs use ironic, even requests. s
+ 3 | \x02\000\000\0005ASIA                     Ages. thinly even pinto beans ca
+ 4 | \x03\000\000\0005EUROPE                   ]ly final courts cajole furiously final excuse
+ 5 | \x04\000\000\0005MIDDLE EAST              \333uickly special accounts cajole carefully blithely close requests. carefully final asymptotes haggle furiousl
+(5 rows)
