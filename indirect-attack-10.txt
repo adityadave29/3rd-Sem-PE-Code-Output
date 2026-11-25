@@ -1,0 +1,47 @@
+tpch-200mb=> RESET ROLE;
+RESET
+tpch-200mb=# ALTER TABLE orders ADD COLUMN o_seqid int GENERATED ALWAYS AS IDENTITY;
+ALTER TABLE
+tpch-200mb=# SET ROLE alice;
+SELECT last_value FROM pg_sequences WHERE sequencename = 'orders_o_seqid_seq';
+SELECT last_value FROM orders_o_seqid_seq;
+SELECT currval('orders_o_seqid_seq');
+SELECT nextval('orders_o_seqid_seq');
+RESET ROLE;
+SET
+last_value
+------------
+         
+(1 row)
+
+
+ERROR:  permission denied for sequence orders_o_seqid_seq
+ERROR:  permission denied for sequence orders_o_seqid_seq
+ERROR:  permission denied for sequence orders_o_seqid_seq
+RESET
+tpch-200mb=# GRANT SELECT ON SEQUENCE orders_o_seqid_seq TO alice;
+
+
+SET ROLE alice;
+SELECT last_value FROM pg_sequences WHERE sequencename = 'orders_o_seqid_seq';
+SELECT last_value FROM orders_o_seqid_seq;
+SELECT count(*) FROM orders;
+RESET ROLE;
+GRANT
+SET
+last_value
+------------
+    300000
+(1 row)
+
+
+last_value
+------------
+    300000
+(1 row)
+
+
+count
+-------
+    7
+(1 row)
