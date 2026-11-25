@@ -1,0 +1,56 @@
+tpch-200mb-2=# DROP TABLE access_control;
+DROP TABLE
+tpch-200mb-2=# CREATE TABLE access_control (
+   db_user     name,
+   min_order   int,
+   max_order   int
+);
+
+
+INSERT INTO access_control VALUES ('alice', 1, 10);
+CREATE TABLE
+INSERT 0 1
+
+tpch-200mb-2=# CREATE POLICY orders_lookup_policy ON orders
+   USING (
+       o_orderkey BETWEEN
+           (SELECT min_order FROM access_control WHERE db_user = current_user)
+           AND
+           (SELECT max_order FROM access_control WHERE db_user = current_user)
+   );
+CREATE POLICY
+
+tpch-200mb-2=# GRANT SELECT ON orders TO alice;
+GRANT SELECT, UPDATE ON access_control TO alice;
+GRANT
+GRANT
+
+tpch-200mb-2=# SET ROLE alice;
+
+
+SELECT * FROM orders ORDER BY o_orderkey;
+SET
+o_orderkey | o_custkey | o_orderstatus | o_totalprice | o_orderdate | o_orderpriority |     o_clerk     | o_shippriority |                                 o_comment                                
+------------+-----------+---------------+--------------+-------------+-----------------+-----------------+----------------+---------------------------------------------------------------------------
+         1 |      7381 | O             |    181585.13 | 1996-01-02  | 5-LOW           | Clerk#000000951 |              0 | nstructions sleep furiously among
+         2 |     15601 | O             |     46093.67 | 1996-12-01  | 1-URGENT        | Clerk#000000880 |              0 |  foxes. pending accounts at the pending, silent asymptot
+         3 |     24664 | F             |    271422.96 | 1993-10-14  | 5-LOW           | Clerk#000000955 |              0 | sly final accounts boost. carefully regular ideas cajole carefully. depos
+         4 |     27356 | O             |     47915.12 | 1995-10-11  | 5-LOW           | Clerk#000000124 |              0 | sits. slyly regular warthogs cajole. regular, regular theodolites acro
+         5 |      8897 | F             |    136701.72 | 1994-07-30  | 5-LOW           | Clerk#000000925 |              0 | quickly. bold deposits sleep slyly. packages use slyly
+         6 |     11125 | F             |     65070.77 | 1992-02-21  | 4-NOT SPECIFIED | Clerk#000000058 |              0 | ggle. special, final requests are against the furiously specia
+         7 |      7828 | O             |    263865.44 | 1996-01-10  | 2-HIGH          | Clerk#000000470 |              0 | ly special requests
+(7 rows)
+tpch-200mb-2=> UPDATE access_control SET min_order = 1, max_order = 999999 WHERE db_user = 'alice';
+UPDATE 1
+tpch-200mb-2=> SELECT * FROM orders ORDER BY o_orderkey;
+o_orderkey | o_custkey | o_orderstatus | o_totalprice | o_orderdate | o_orderpriority |     o_clerk     | o_shippriority |                                   o_comment                                   
+------------+-----------+---------------+--------------+-------------+-----------------+-----------------+----------------+--------------------------------------------------------------------------------
+         1 |      7381 | O             |    181585.13 | 1996-01-02  | 5-LOW           | Clerk#000000951 |              0 | nstructions sleep furiously among
+         2 |     15601 | O             |     46093.67 | 1996-12-01  | 1-URGENT        | Clerk#000000880 |              0 |  foxes. pending accounts at the pending, silent asymptot
+         3 |     24664 | F             |    271422.96 | 1993-10-14  | 5-LOW           | Clerk#000000955 |              0 | sly final accounts boost. carefully regular ideas cajole carefully. depos
+         4 |     27356 | O             |     47915.12 | 1995-10-11  | 5-LOW           | Clerk#000000124 |              0 | sits. slyly regular warthogs cajole. regular, regular theodolites acro
+         5 |      8897 | F             |    136701.72 | 1994-07-30  | 5-LOW           | Clerk#000000925 |              0 | quickly. bold deposits sleep slyly. packages use slyly
+         6 |     11125 | F             |     65070.77 | 1992-02-21  | 4-NOT SPECIFIED | Clerk#000000058 |              0 | ggle. special, final requests are against the furiously specia
+         7 |      7828 | O             |    263865.44 | 1996-01-10  | 2-HIGH          | Clerk#000000470 |              0 | ly special requests
+        32 |     26012 | O             |    153480.44 | 1995-07-16  | 2-HIGH          | Clerk#000000616 |              0 | ise blithely bold, regular requests. quickly unusual dep
+        33 |     13393 | F             |    138122.69 | 1993-10-27  | 3-MEDIUM        | Clerk#000000409 |              0 | uriously. furiously final request
