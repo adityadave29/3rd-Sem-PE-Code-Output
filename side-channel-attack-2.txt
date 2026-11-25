@@ -1,0 +1,190 @@
+-- ============================================
+-- SETUP
+-- ============================================
+DROP TABLE IF EXISTS customers;
+
+
+CREATE TABLE customers (
+   customer_id   INT PRIMARY KEY,
+   customer_name VARCHAR(50),
+   owner_user    NAME NOT NULL   -- maps each row to a DB role allowed to see it
+);
+
+
+INSERT INTO customers (customer_id, customer_name, owner_user) VALUES
+   (801, 'Edward Smith',  'app_user_1'),
+   (802, 'Alice Johnson', 'app_user_2'),
+   (803, 'Michael Brown', 'app_user_1');
+
+
+-- ============================================
+-- CREATE RESTRICTED ROLES
+-- ============================================
+DROP ROLE IF EXISTS app_user_1;
+DROP ROLE IF EXISTS app_user_2;
+DROP ROLE IF EXISTS app_role;
+
+
+CREATE ROLE app_role NOLOGIN;
+CREATE ROLE app_user_1 NOLOGIN IN ROLE app_role;
+CREATE ROLE app_user_2 NOLOGIN IN ROLE app_role;
+
+
+GRANT SELECT ON customers TO app_role;   -- role CAN query the table
+
+
+-- ============================================
+-- ENABLE RLS AND CREATE POLICY
+-- Rule: a role can only see rows where owner_user = current_user
+-- ============================================
+ALTER TABLE customers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE customers FORCE ROW LEVEL SECURITY;  -- applies even to table owner
+
+
+DROP POLICY IF EXISTS customer_filter_policy ON customers;
+
+
+CREATE POLICY customer_filter_policy
+   ON customers
+   FOR SELECT
+   USING (owner_user = current_user);
+
+
+-- ============================================
+-- TEST 1: What app_user_1 can see directly (RLS in effect)
+-- ============================================
+\echo '--- Direct SELECT as app_user_1 (RLS filtering applied) ---'
+
+
+SET ROLE app_user_1;
+
+
+SELECT * FROM customers;   -- should only return rows 801 and 803, NOT 802
+
+
+RESET ROLE;
+-- Expected: only customer_id 801 and 803 visible. 802 (Alice, owned by app_user_2) is invisible.
+
+
+
+
+-- ============================================
+-- TEST 2: Attack against a row app_user_1 is NOT allowed to see (customer_id 802)
+-- ============================================
+\echo '--- Attack as app_user_1 against customer_id 802 (not owned by app_user_1) ---'
+
+
+SET ROLE app_user_1;
+
+
+DO $$
+DECLARE
+   dummy INT;
+BEGIN
+   SELECT 1 / (
+       CASE SUBSTRING(customer_name, 1, 1) WHEN 'A' THEN 0 ELSE 1 END
+   )
+   INTO dummy
+   FROM customers
+   WHERE customer_id = 802;
+
+
+   RAISE NOTICE 'No error - RLS filtered the row before the CASE/divide ever evaluated. dummy = %', dummy;
+EXCEPTION
+   WHEN division_by_zero THEN
+       RAISE NOTICE 'CAUGHT ERROR: division by zero';
+END $$;
+
+
+RESET ROLE;
+-- Expected: NO error, NO rows match -> SELECT INTO returns NULL with a "no rows" style outcome,
+-- no exception is raised, regardless of the guessed character.
+-- RLS removes the row before the CASE/divide logic is ever evaluated against it.
+
+
+
+
+-- ============================================
+-- TEST 3: Attack against a row app_user_1 IS allowed to see (customer_id 801)
+-- ============================================
+\echo '--- Attack as app_user_1 against customer_id 801 (owned by app_user_1) ---'
+
+
+SET ROLE app_user_1;
+
+
+DO $$
+DECLARE
+   dummy INT;
+BEGIN
+   SELECT 1 / (
+       CASE SUBSTRING(customer_name, 1, 1) WHEN 'E' THEN 0 ELSE 1 END
+   )
+   INTO dummy
+   FROM customers
+   WHERE customer_id = 801;
+
+
+   RAISE NOTICE 'No error. dummy = %', dummy;
+EXCEPTION
+   WHEN division_by_zero THEN
+       RAISE NOTICE 'CAUGHT ERROR: division by zero -- inference succeeds, row was already visible to this user anyway';
+END $$;
+
+
+RESET ROLE;
+-- Expected: division_by_zero exception fires, same as before RLS,
+-- because this row passes the RLS filter and reaches evaluation.
+
+rlsdemo=# SET ROLE app_user_1;
+
+
+EXPLAIN (ANALYZE, VERBOSE, COSTS, BUFFERS)
+SELECT 1 / (
+   CASE SUBSTRING(customer_name, 1, 1) WHEN 'A' THEN 0 ELSE 1 END
+)
+FROM customers
+WHERE customer_id = 802;
+
+
+RESET ROLE;
+SET
+                                                            QUERY PLAN                                                            
+------------------------------------------------------------------------------------------------------------------------------------
+Index Scan using customers_pkey on public.customers  (cost=0.15..8.18 rows=1 width=4) (actual time=0.199..0.199 rows=0.00 loops=1)
+  Output: (1 / CASE "substring"((customer_name)::text, 1, 1) WHEN 'A'::text THEN 0 ELSE 1 END)
+  Index Cond: (customers.customer_id = 802)
+  Filter: (customers.owner_user = CURRENT_USER)
+  Rows Removed by Filter: 1
+  Index Searches: 1
+  Buffers: shared hit=2
+Planning Time: 5.127 ms
+Execution Time: 1.266 ms
+(9 rows)
+
+
+RESET
+rlsdemo=# SET ROLE app_user_1;
+
+
+EXPLAIN (ANALYZE, VERBOSE, COSTS, BUFFERS)
+SELECT 1 / (
+   CASE SUBSTRING(customer_name, 1, 1) WHEN 'E' THEN 0 ELSE 1 END
+)
+FROM customers
+WHERE customer_id = 801;
+
+
+RESET ROLE;
+SET
+2026-10-31 23:38:33.170 IST [26840] ERROR:  division by zero
+2026-10-31 23:38:33.170 IST [26840] STATEMENT:  EXPLAIN (ANALYZE, VERBOSE, COSTS, BUFFERS)
+   SELECT 1 / (
+       CASE SUBSTRING(customer_name, 1, 1) WHEN 'E' THEN 0 ELSE 1 END
+   )
+   FROM customers
+   WHERE customer_id = 801;
+ERROR:  division by zero
+RESET
+rlsdemo=# 2026-10-31 23:39:15.830 IST [26827] LOG:  checkpoint starting: time
+2026-10-31 23:39:21.239 IST [26827] LOG:  checkpoint complete: wrote 53 buffers (0.3%), wrote 1 SLRU buffers; 0 WAL file(s) added, 0 removed, 0 recycled; write=5.401 s, sync=0.005 s, total=5.410 s; sync files=42, longest=0.001 s, average=0.001 s; distance=234 kB, estimate=234 kB; lsn=3/7E7C3148, redo lsn=3/7E7C30B8
