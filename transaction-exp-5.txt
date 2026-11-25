@@ -1,0 +1,138 @@
+postgres=# -- table and data
+DROP TABLE IF EXISTS ord;
+CREATE TABLE ord (
+   account_id INTEGER PRIMARY KEY,
+   order_id   INTEGER NOT NULL
+);
+INSERT INTO ord (account_id, order_id) VALUES
+   (1, 11), (2, 12), (3, 13), (4, 14);
+
+
+-- clean up old roles (DROP OWNED fixes the "objects depend on it" error)
+DROP OWNED BY victim;       DROP ROLE IF EXISTS victim;
+DROP OWNED BY dba_monitor;  DROP ROLE IF EXISTS dba_monitor;
+DROP OWNED BY plain_obs;    DROP ROLE IF EXISTS plain_obs;
+DROP OWNED BY stats_obs;    DROP ROLE IF EXISTS stats_obs;
+NOTICE:  table "ord" does not exist, skipping
+DROP TABLE
+CREATE TABLE
+INSERT 0 4
+DROP OWNED
+2026-11-12 14:23:10.679 IST [56283] ERROR:  role "victim" cannot be dropped because some objects depend on it
+2026-11-12 14:23:10.679 IST [56283] DETAIL:  1 object in database tpch-200mb
+2026-11-12 14:23:10.679 IST [56283] STATEMENT:  DROP ROLE IF EXISTS victim;
+ERROR:  role "victim" cannot be dropped because some objects depend on it
+DETAIL:  1 object in database tpch-200mb
+2026-11-12 14:23:10.679 IST [56283] ERROR:  role "dba_monitor" does not exist
+2026-11-12 14:23:10.679 IST [56283] STATEMENT:  DROP OWNED BY dba_monitor;
+ERROR:  role "dba_monitor" does not exist
+NOTICE:  role "dba_monitor" does not exist, skipping
+DROP ROLE
+2026-11-12 14:23:10.679 IST [56283] ERROR:  role "plain_obs" does not exist
+2026-11-12 14:23:10.679 IST [56283] STATEMENT:  DROP OWNED BY plain_obs;
+ERROR:  role "plain_obs" does not exist
+NOTICE:  role "plain_obs" does not exist, skipping
+DROP ROLE
+2026-11-12 14:23:10.679 IST [56283] ERROR:  role "stats_obs" does not exist
+2026-11-12 14:23:10.679 IST [56283] STATEMENT:  DROP OWNED BY stats_obs;
+ERROR:  role "stats_obs" does not exist
+NOTICE:  role "stats_obs" does not exist, skipping
+DROP ROLE
+
+postgres=# -- victim: reads and writes the table
+CREATE ROLE victim LOGIN PASSWORD 'victim_pw';
+GRANT USAGE ON SCHEMA public TO victim;
+GRANT SELECT, UPDATE ON ord TO victim;
+
+
+-- DBA: monitoring only, no access to the table
+CREATE ROLE dba_monitor LOGIN PASSWORD 'dba_pw';
+GRANT USAGE ON SCHEMA public TO dba_monitor;
+GRANT pg_monitor TO dba_monitor;
+
+
+-- middle tier: can see query text, nothing else from pg_monitor
+CREATE ROLE stats_obs LOGIN PASSWORD 'stats_pw';
+GRANT pg_read_all_stats TO stats_obs;
+
+
+-- baseline observer: no grants at all
+CREATE ROLE plain_obs LOGIN PASSWORD 'plain_pw';
+GRANT USAGE ON SCHEMA public TO plain_obs;
+2026-11-12 14:23:52.285 IST [56283] ERROR:  role "victim" already exists
+2026-11-12 14:23:52.285 IST [56283] STATEMENT:  CREATE ROLE victim LOGIN PASSWORD 'victim_pw';
+ERROR:  role "victim" already exists
+GRANT
+GRANT
+CREATE ROLE
+GRANT
+GRANT ROLE
+CREATE ROLE
+GRANT ROLE
+CREATE ROLE
+GRANT
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Victim:
+
+
+adityadave@Adityas-MacBook-Air-3 ~ % psql -U victim -d postgres -h localhost
+psql (18.4)
+Type "help" for help.
+postgres=> -- variant 1: literal (row id visible in query text)
+BEGIN;
+UPDATE ord SET order_id = order_id WHERE account_id = 1;
+BEGIN
+UPDATE 1
+
+
+
+
+
+
+
+
+
+
+
+Attacker:
+adityadave@Adityas-MacBook-Air-3 ~ % psql -U dba_monitor -d 
+postgres=> SELECT * FROM ord;
+ERROR:  permission denied for table ord
+postgres=> SELECT locktype, relation::regclass AS relation, page, tuple, mode, granted, pid
+FROM pg_locks
+WHERE relation = 'ord'::regclass
+  OR locktype IN ('transactionid', 'tuple')
+ORDER BY locktype, pid;
+  locktype    | relation | page | tuple |       mode       | granted |  pid 
+---------------+----------+------+-------+------------------+---------+-------
+relation      | ord      |      |       | RowExclusiveLock | t       | 10598
+transactionid |          |      |       | ExclusiveLock    | t       | 10598
+(2 rows)
+
+
+postgres=> SELECT pid, usename, state, query, wait_event_type, wait_event
+FROM pg_stat_activity
+WHERE usename = 'victim';
+ pid  | usename |        state        |                          query                           | wait_event_type | wait_event
+-------+---------+---------------------+----------------------------------------------------------+-----------------+------------
+10598 | victim  | idle in transaction | UPDATE ord SET order_id = order_id WHERE account_id = 1; | Client          | ClientRead
+(1 row)
