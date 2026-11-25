@@ -1,0 +1,80 @@
+Setup:
+
+postgres=# -- 1. Create table & sample data
+DROP TABLE IF EXISTS test_accounts;
+CREATE TABLE test_accounts (
+   account_id  INT PRIMARY KEY,
+   balance     NUMERIC NOT NULL,
+   secret_note TEXT NOT NULL
+);
+
+
+INSERT INTO test_accounts VALUES
+(1, 1000, 'Confidential VIP Alpha'),
+(2,  500, 'Regular user Beta');
+
+
+-- 2. Create roles (if not already created)
+DO $$ BEGIN
+   IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'victim_role') THEN CREATE ROLE victim_role LOGIN; END IF;
+   IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'attacker_role') THEN CREATE ROLE attacker_role LOGIN; END IF;
+END $$;
+
+
+-- 3. Reset & grant privileges
+REVOKE ALL ON TABLE test_accounts FROM PUBLIC, victim_role, attacker_role;
+
+
+-- Victim: Full SELECT and UPDATE
+GRANT SELECT, UPDATE ON TABLE test_accounts TO victim_role;
+
+
+-- Attacker: UPDATE on table + SELECT ONLY on account_id (NO access to secret_note/balance)
+GRANT UPDATE ON TABLE test_accounts TO attacker_role;
+GRANT SELECT (account_id) ON TABLE test_accounts TO attacker_role;
+DROP TABLE
+CREATE TABLE
+INSERT 0 2
+DO
+REVOKE
+GRANT
+GRANT
+GRANT
+
+
+
+
+
+
+
+
+
+Victim:
+
+adityadave@Adityas-MacBook-Air-3 ~ % psql -U victim_role -d
+postgres=> BEGIN;
+-- Victim modifies account 1 and holds the transaction open:
+UPDATE test_accounts SET balance = balance + 50 WHERE account_id = 1;
+BEGIN
+UPDATE 1
+postgres=*>
+
+
+
+
+
+
+
+
+Attacker:
+adityadave@Adityas-MacBook-Air-3 ~ % psql -U attacker_role -d 
+postgres=> SELECT 1 FROM test_accounts WHERE account_id = 2 FOR UPDATE NOWAIT;
+?column?
+----------
+       1
+(1 row)
+
+
+postgres=> SELECT 1 FROM test_accounts WHERE account_id = 1 FOR UPDATE NOWAIT;
+ERROR:  could not obtain lock on row in relation "test_accounts"
+postgres=>
