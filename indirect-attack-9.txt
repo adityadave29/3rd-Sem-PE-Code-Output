@@ -1,0 +1,37 @@
+ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
+CREATE POLICY orders_test ON orders FOR SELECT TO alice
+USING (o_orderkey BETWEEN 1 AND 10);
+GRANT SELECT ON orders TO alice;
+
+tpch-200mb=> SET ROLE alice;
+EXPLAIN ANALYZE SELECT * FROM orders WHERE o_orderkey = 32;
+SET
+                                                      QUERY PLAN                                                       
+-------------------------------------------------------------------------------------------------------------------------
+Gather  (cost=1000.00..8459.60 rows=1 width=107) (actual time=70.279..71.385 rows=0.00 loops=1)
+  Workers Planned: 2
+  Workers Launched: 2
+  Buffers: shared hit=3006 read=2266
+  ->  Parallel Seq Scan on orders  (cost=0.00..7459.50 rows=1 width=107) (actual time=58.392..58.393 rows=0.00 loops=3)
+        Filter: ((o_orderkey >= 1) AND (o_orderkey <= 10) AND (o_orderkey = 32))
+        Rows Removed by Filter: 100000
+        Buffers: shared hit=3006 read=2266
+Planning Time: 2.701 ms
+Execution Time: 72.442 ms
+(10 rows)
+
+
+tpch-200mb=> EXPLAIN ANALYZE SELECT * FROM orders WHERE o_orderkey = 999999;
+                                                      QUERY PLAN                                                       
+-------------------------------------------------------------------------------------------------------------------------
+Gather  (cost=1000.00..8459.60 rows=1 width=107) (actual time=68.197..69.295 rows=0.00 loops=1)
+  Workers Planned: 2
+  Workers Launched: 2
+  Buffers: shared hit=3289 read=1983
+  ->  Parallel Seq Scan on orders  (cost=0.00..7459.50 rows=1 width=107) (actual time=58.929..58.930 rows=0.00 loops=3)
+        Filter: ((o_orderkey >= 1) AND (o_orderkey <= 10) AND (o_orderkey = 999999))
+        Rows Removed by Filter: 100000
+        Buffers: shared hit=3289 read=1983
+Planning Time: 0.437 ms
+Execution Time: 69.393 ms
+(10 rows)
