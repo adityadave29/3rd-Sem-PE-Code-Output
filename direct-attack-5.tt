@@ -1,0 +1,80 @@
+Part 1:
+
+
+Policy:
+SET ROLE orders_admins;
+
+
+CREATE POLICY orders_custkey_policy ON orders
+   USING (o_custkey = current_setting('app.current_custkey', true)::int);
+
+
+RESET ROLE;
+psql -U alice -d tpch-200mb-2
+SELECT current_setting('app.current_custkey', true);
+
+
+SET app.current_custkey = '7381';
+SELECT * FROM orders;
+
+
+SET app.current_custkey = '999999';
+SELECT * FROM orders;
+
+
+
+
+
+Part 2:
+
+adityadave@Adityas-MacBook-Air-3 ~ % psql -U alice -d tpch-200mb
+psql (18.4)
+Type "help" for help.
+
+
+tpch-200mb=> SELECT current_setting('app.current_custkey', true);
+current_setting
+-----------------
+(1 row)
+
+
+tpch-200mb=> SET app.current_custkey = '7381';
+SELECT * FROM orders;
+SET
+o_orderkey | o_custkey | o_orderstatus | o_totalprice | o_orderdate | o_orderpriority |     o_clerk     | o_shippriority |                                   o_comment                                   | o_seqid
+------------+-----------+---------------+--------------+-------------+-----------------+-----------------+----------------+-------------------------------------------------------------------------------+---------
+    917894 |      7381 | O             |    180022.74 | 1995-06-25  | 1-URGENT        | Clerk#000000724 |              0 | accounts. blithely regular forges integrate blithely. fur                     |    1690
+    943010 |      7381 | F             |    337352.94 | 1994-08-31  | 2-HIGH          | Clerk#000000930 |              0 | nst the doggedly final deposits boost across the reg                          |    7969
+    956517 |      7381 | F             |    247412.20 | 1992-11-25  | 5-LOW           | Clerk#000000375 |              0 | ers cajole blithely at the furiou                                             |   11352
+   1012291 |      7381 | O             |    109849.09 | 1998-01-19  | 5-LOW           | Clerk#000000472 |              0 | d instructions. regular pinto beans                                           |   25299
+   1090436 |      7381 | O             |    134217.96 | 1996-12-22  | 1-URGENT        | Clerk#000000457 |              0 |  daring packages haggle slyly                                                 |   44831
+     90307 |      7381 | F             |     76091.56 | 1994-11-11  | 3-MEDIUM        | Clerk#000000276 |              0 | across the carefully                                                          |   94824
+    121028 |      7381 | F             |    117915.58 | 1994-05-03  | 4-NOT SPECIFIED | Clerk#000000124 |              0 |  sleep furiously blithely unusual ideas. regular courts wake above the quickl |  102505
+    122790 |      7381 | F             |     82815.20 | 1992-11-28  | 4-NOT SPECIFIED | Clerk#000000153 |              0 | l asymptotes. unusual packages sleep slowly blithe                            |  102947
+    207237 |      7381 | O             |    247349.96 | 1996-04-12  | 4-NOT SPECIFIED | Clerk#000000487 |              0 | egular ideas solve blithely ironic requests. furiously even pa                |  124056
+    749828 |      7381 | O             |     26909.48 | 1995-05-31  | 2-HIGH          | Clerk#000000164 |              0 | quests run carefully packages. slyly express instruction                      |  259677
+    822916 |      7381 | O             |    143950.49 | 1995-12-21  | 2-HIGH          | Clerk#000000014 |              0 | uctions. sometimes even platelets pla                                         |  277949
+    857990 |      7381 | O             |    262997.14 | 1996-08-03  | 3-MEDIUM        | Clerk#000000408 |              0 | ccording to the carefully regular gifts. ac                                   |  286717
+   1021507 |      7381 | O             |     25187.67 | 1995-08-02  | 1-URGENT        | Clerk#000000863 |              0 | arefully express dependencies. furiously                                      |   27601
+   1134306 |      7381 | O             |    131334.11 | 1996-04-26  | 1-URGENT        | Clerk#000000890 |              0 | n requests. fluffily silent packages use quickly final deposits. b            |   55796
+   1172102 |      7381 | O             |     45723.12 | 1996-04-19  | 3-MEDIUM        | Clerk#000000445 |              0 | he final ideas. bli                                                           |   65245
+    183681 |      7381 | F             |    291043.06 | 1994-07-26  | 1-URGENT        | Clerk#000000644 |              0 | eodolites. bold foxes ca                                                      |  118164
+    228128 |      7381 | F             |    214517.40 | 1992-03-07  | 1-URGENT        | Clerk#000000621 |              0 | s wake fluffily regular dependenc                                             |  129273
+    302976 |      7381 | F             |    186913.68 | 1994-06-19  | 5-LOW           | Clerk#000000569 |              0 |  special, final asymptotes haggle carefully regular courts. carefully unu     |  147982
+    560900 |      7381 | F             |     43724.63 | 1994-01-21  | 5-LOW           | Clerk#000000973 |              0 | permanently blithely ironic as                                                |  212455
+         1 |      7381 | O             |       999.00 | 1996-01-02  | 5-LOW           | Clerk#000000951 |              0 | nstructions sleep furiously among                                             |   72212
+   1122244 |      7381 | O             |    151804.80 | 1995-08-14  | 5-LOW           | Clerk#000000048 |              0 | refully express accounts? carefully special accounts                          |   52782
+   1148772 |      7381 | F             |    165053.68 | 1993-08-23  | 2-HIGH          | Clerk#000000481 |              0 | ful accounts nag carefully bravely regular packages. fluffily ironic package  |   59414
+    143105 |      7381 | O             |     72398.97 | 1996-07-03  | 1-URGENT        | Clerk#000000540 |              0 | cial deposits wake quickly after the blithely bold excuses. packages sle      |  108020
+    385316 |      7381 | O             |     20753.47 | 1997-01-08  | 4-NOT SPECIFIED | Clerk#000000924 |              0 | nstructions. slyly pending deposi                                             |  168568
+    395175 |      7381 | F             |    143223.60 | 1994-05-19  | 3-MEDIUM        | Clerk#000000085 |              0 | hely final foxes. regular pearls d                                            |  171035
+    799488 |      7381 | F             |    204279.55 | 1994-11-13  | 3-MEDIUM        | Clerk#000000897 |              0 | ously final request                                                           |  272089
+    827715 |      7381 | F             |     48294.59 | 1994-02-23  | 5-LOW           | Clerk#000000565 |              0 |  even, even deposits wake carefully. theodolites at the slyly unusual request |  279148
+(27 rows)
+Cancel request sent
+tpch-200mb=> SET app.current_custkey = '999999';
+SELECT * FROM orders;
+SET
+o_orderkey | o_custkey | o_orderstatus | o_totalprice | o_orderdate | o_orderpriority | o_clerk | o_shippriority | o_comment | o_seqid
+------------+-----------+---------------+--------------+-------------+-----------------+---------+----------------+-----------+---------
+(0 rows)
