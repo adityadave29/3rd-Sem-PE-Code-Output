@@ -1,0 +1,191 @@
+rlsdemo=# -- ============================================
+-- 1. SETUP: TABLE AND DATA
+-- ============================================
+DROP TABLE IF EXISTS customers;
+
+
+CREATE TABLE customers (
+   customer_id   INT PRIMARY KEY,
+   customer_name VARCHAR(50),
+   owner_user    NAME NOT NULL
+);
+
+
+INSERT INTO customers (customer_id, customer_name, owner_user) VALUES
+   (801, 'Edward Smith',  'app_user_1'),
+   (802, 'Alice Johnson', 'app_user_2'),   -- NOT owned by app_user_1
+   (803, 'Michael Brown', 'app_user_1');
+
+
+-- ============================================
+-- 2. ROLES
+-- ============================================
+DROP ROLE IF EXISTS app_user_1;
+DROP ROLE IF EXISTS app_user_2;
+DROP ROLE IF EXISTS app_role;
+
+
+CREATE ROLE app_role NOLOGIN;
+CREATE ROLE app_user_1 NOLOGIN IN ROLE app_role;
+CREATE ROLE app_user_2 NOLOGIN IN ROLE app_role;
+
+
+GRANT SELECT ON customers TO app_role;
+DROP TABLE
+CREATE TABLE
+INSERT 0 3
+DROP ROLE
+DROP ROLE
+DROP ROLE
+CREATE ROLE
+CREATE ROLE
+CREATE ROLE
+GRANT
+rlsdemo=# ALTER TABLE customers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE customers FORCE ROW LEVEL SECURITY;
+
+
+DROP POLICY IF EXISTS customer_filter_policy ON customers;
+
+
+CREATE POLICY customer_filter_policy
+   ON customers
+   FOR SELECT
+   USING (owner_user = current_user);
+ALTER TABLE
+ALTER TABLE
+NOTICE:  policy "customer_filter_policy" for relation "customers" does not exist, skipping
+DROP POLICY
+CREATE POLICY
+rlsdemo=# SET ROLE app_user_1;
+SELECT * FROM customers WHERE customer_id = 802;   -- expect 0 rows
+RESET ROLE;
+SET
+customer_id | customer_name | owner_user
+-------------+---------------+------------
+(0 rows)
+
+
+RESET
+rlsdemo=# SET ROLE app_user_1;
+
+
+DO $$
+DECLARE
+   pos           INT := 1;
+   max_len       INT := 20;
+   code          INT;
+   extracted     TEXT := '';
+   found_any     BOOLEAN := FALSE;
+   found_char    BOOLEAN;
+   dummy         INT;
+BEGIN
+   WHILE pos <= max_len LOOP
+       found_char := FALSE;
+       code := 32;
+
+
+       WHILE code <= 126 LOOP
+           BEGIN
+               SELECT 1 / (
+                   CASE SUBSTRING(customer_name, pos, 1)
+                        WHEN CHR(code) THEN 0
+                        ELSE 1
+                   END
+               )
+               INTO dummy
+               FROM customers
+               WHERE customer_id = 802;
+
+
+           EXCEPTION
+               WHEN division_by_zero THEN
+                   extracted := extracted || CHR(code);
+                   found_char := TRUE;
+                   found_any := TRUE;
+           END;
+
+
+           EXIT WHEN found_char;
+           code := code + 1;
+       END LOOP;
+
+
+       EXIT WHEN NOT found_char;
+       pos := pos + 1;
+   END LOOP;
+
+
+   IF found_any THEN
+       RAISE NOTICE 'LEAK CONFIRMED. Extracted value: %', extracted;
+   ELSE
+       RAISE NOTICE 'NO LEAK. RLS blocked extraction - no characters matched for customer_id 802.';
+   END IF;
+END $$;
+
+
+RESET ROLE;
+SET
+NOTICE:  NO LEAK. RLS blocked extraction - no characters matched for customer_id 802.
+DO
+RESET
+rlsdemo=# SET ROLE app_user_1;
+
+
+DO $$
+DECLARE
+   pos           INT := 1;
+   max_len       INT := 20;
+   code          INT;
+   extracted     TEXT := '';
+   found_any     BOOLEAN := FALSE;
+   found_char    BOOLEAN;
+   dummy         INT;
+BEGIN
+   WHILE pos <= max_len LOOP
+       found_char := FALSE;
+       code := 32;
+
+
+       WHILE code <= 126 LOOP
+           BEGIN
+               SELECT 1 / (
+                   CASE SUBSTRING(customer_name, pos, 1)
+                        WHEN CHR(code) THEN 0
+                        ELSE 1
+                   END
+               )
+               INTO dummy
+               FROM customers
+               WHERE customer_id = 801;
+
+
+           EXCEPTION
+               WHEN division_by_zero THEN
+                   extracted := extracted || CHR(code);
+                   found_char := TRUE;
+                   found_any := TRUE;
+           END;
+
+
+           EXIT WHEN found_char;
+           code := code + 1;
+       END LOOP;
+
+
+       EXIT WHEN NOT found_char;
+       pos := pos + 1;
+   END LOOP;
+
+
+   RAISE NOTICE 'Control test extracted value (should be Edward Smith): %', extracted;
+END $$;
+
+
+RESET ROLE;
+SET
+NOTICE:  Control test extracted value (should be Edward Smith): Edward Smith
+DO
+RESET
+rlsdemo=# 2026-11-01 11:03:38.802 IST [26827] LOG:  checkpoint starting: time
+2026-11-01 11:03:43.291 IST [26827] LOG:  checkpoint complete: wrote 44 buffers (0.3%), wrote 1 SLRU buffers; 0 WAL file(s) added, 0 removed, 0 recycled; write=4.478 s, sync=0.005 s, total=4.491 s; sync files=39, longest=0.001 s, average=0.001 s; distance=181 kB, estimate=229 kB; lsn=3/7E7F06C0, redo lsn=3/7E7F0668
