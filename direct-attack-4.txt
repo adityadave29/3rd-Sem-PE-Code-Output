@@ -1,0 +1,25 @@
+tpch-200mb-2=# CREATE OR REPLACE FUNCTION on_login_proc() RETURNS event_trigger
+SECURITY DEFINER
+AS $$
+BEGIN
+   IF session_user = 'alice' THEN
+       EXECUTE 'SET SESSION AUTHORIZATION adityadave';
+   END IF;
+END;
+$$ LANGUAGE plpgsql;
+
+
+ALTER FUNCTION on_login_proc() OWNER TO adityadave;
+CREATE FUNCTION
+ALTER FUNCTION
+tpch-200mb-2=# DROP EVENT TRIGGER IF EXISTS on_login_event;
+
+
+CREATE EVENT TRIGGER on_login_event ON login EXECUTE FUNCTION on_login_proc();
+DROP EVENT TRIGGER
+CREATE EVENT TRIGGER
+tpch-200mb-2=# \c tpch-200mb-2 alice
+connection to server on socket "/tmp/.s.PGSQL.5432" failed: FATAL:  cannot set parameter "session_authorization" within security-definer function
+CONTEXT:  SQL statement "SET SESSION AUTHORIZATION adityadave"
+PL/pgSQL function on_login_proc() line 4 at EXECUTE
+Previous connection kept
